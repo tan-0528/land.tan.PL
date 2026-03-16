@@ -1,0 +1,10 @@
+name: LandPlugin
+version: 1.0
+main: tan0528.land.MyPlugin
+api-version: 1.20 # 1.20以降（1.21等）をお使いの場合もこれで動作します
+
+commands:
+  land:
+    description: 土地管理システム用コマンド
+    usage: /land
+    # permission: land.use  <-- これがあると一般人が打てなくなるので、あえて書きません。
