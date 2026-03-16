@@ -1,0 +1,62 @@
+plugins {
+    id 'java'
+    // プラグインをビルド（jar作成）するための標準プラグイン
+}
+
+group = 'tan0528.land'
+version = '1.0-SNAPSHOT'
+
+// Javaのバージョン設定（1.20.x以降なら17以上を推奨）
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+repositories {
+    mavenCentral()
+
+    // Paper APIのリポジトリ
+    maven {
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
+
+    // Spigot APIのリポジトリ（予備）
+    maven {
+        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
+    }
+
+    // Vault APIを取得するためのリポジトリ
+    maven {
+        url = "https://jitpack.io"
+    }
+}
+
+dependencies {
+    // Paper API (1.20.1を使用。サーバーのバージョンに合わせて変更可能)
+    compileOnly "io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT"
+
+    // Vault API
+    compileOnly "com.github.MilkBowl:VaultAPI:1.7"
+
+    // アノテーション用
+    compileOnly "org.jetbrains:annotations:24.0.1"
+}
+
+// jarファイル作成時の設定
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}
+
+// コンパイル時の文字コードをUTF-8に固定（日本語文字化け防止）
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// ビルドしたjarの出力先を分かりやすく設定
+jar {
+    archiveFileName = "LandPlugin-${version}.jar"
+}
