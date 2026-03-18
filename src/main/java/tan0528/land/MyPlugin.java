@@ -29,14 +29,22 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
-public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
+public class MyPlugin extends JavaPlugin implements CommandExecutor {
 
     private final Map<UUID, Location[]> selections = new HashMap<>();
     private static Economy econ = null;
+
+    public Map<UUID, Location[]> getSelections() {
+        return selections;
+    }
+
+    public void setSelections(UUID id,Location[] locations){
+        selections.putIfAbsent(id,locations);
+    }
+
+    private List<String> plots = new ArrayList<>();
 
     @Override
     public void onEnable() {
@@ -53,11 +61,25 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         }
 
         // イベントとコマンドの登録
-        Bukkit.getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(new Event(this), this);
+
         if (getCommand("land") != null) getCommand("land").setExecutor(this);
 
         // 範囲選択時のパーティクル表示タスク (0.1秒ごと)
         Bukkit.getScheduler().runTaskTimer(this, this::showParticles, 0L, 2L);
+
+
+
+        for (String plotName : getConfig().getConfigurationSection("plots").getKeys(false)) {
+
+            // ここに各プロットに対する処理を書く
+            getLogger().info("プロット: " + plotName);
+
+            plots.add(plotName);
+
+        }
+
+
     }
 
     private boolean setupEconomy() {
@@ -78,7 +100,7 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
             p.sendMessage("§b[販売看板の作り方]");
             p.sendMessage("§7・看板を設置し、§e1行目: [PLOTS] §7、§e2行目: 土地名");
             p.sendMessage("§7・§f/land delete <土地名> §7で土地データを完全削除");
-            p.sendMessage("");
+            p.sendMessage("§6 すべての土地名を取得 §e/land list");
         }
         p.sendMessage("§a§l[プレイヤー用]");
         p.sendMessage("§7・土地は1人1つまで。看板右クリックで購入確認。");
@@ -108,6 +130,9 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         }
         else if (sub.equals("mode") && args.length >= 3) {
             updateMode(player, args[1], args[2].toLowerCase());
+        } else if (sub.equals("list") && args.length == 2) {
+            plotList(player);
+
         } else {
             sendHelp(player);
         }
@@ -193,7 +218,7 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         return count;
     }
 
-    private void updateSign(Block block, String plotName) {
+    public void updateSign(Block block, String plotName) {
         if (!(block.getState() instanceof Sign sign)) return;
         String status = getConfig().getString("plots." + plotName + ".status", "selling");
         double price = getConfig().getDouble("plots." + plotName + ".price", 0);
@@ -219,7 +244,7 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         player.sendMessage("§a土地の状態を " + mode + " に変更しました。");
     }
 
-    private boolean canAccess(Player player, Location loc) {
+    public boolean canAccess(Player player, Location loc) {
         if (player.isOp()) return true;
         ConfigurationSection plots = getConfig().getConfigurationSection("plots");
         if (plots == null) return true;
@@ -243,29 +268,7 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
                 l.getBlockZ()>=Math.min(z1,z2) && l.getBlockZ()<=Math.max(z1,z2);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onBreak(BlockBreakEvent e) { if (!canAccess(e.getPlayer(), e.getBlock().getLocation())) { e.setCancelled(true); e.getPlayer().sendMessage("§cここは保護されています。"); } }
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlace(BlockPlaceEvent e) { if (!canAccess(e.getPlayer(), e.getBlock().getLocation())) { e.setCancelled(true); e.getPlayer().sendMessage("§cここは保護されています。"); } }
 
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onInteract(PlayerInteractEvent e) {
-        Block block = e.getClickedBlock();
-        if (block == null) return;
-        if (block.getState() instanceof Sign sign) {
-            String l0 = PlainTextComponentSerializer.plainText().serialize(sign.line(0));
-            if (l0.startsWith("[") && l0.endsWith("]")) {
-                if (e.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                    e.setCancelled(true);
-                    sendConfirmation(e.getPlayer(), l0.replace("[", "").replace("]", ""));
-                }
-                return;
-            }
-        }
-        if ((e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.PHYSICAL) && block.getType().isInteractable()) {
-            if (!canAccess(e.getPlayer(), block.getLocation())) { e.setCancelled(true); if (e.getAction() != Action.PHYSICAL) e.getPlayer().sendMessage("§c所有者以外は操作できません。"); }
-        }
-    }
 
     private void syncAllSigns(String plotName) {
         ConfigurationSection s = getConfig().getConfigurationSection("plots." + plotName + ".signs");
@@ -278,6 +281,7 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
+    /* Event.javaクラスに移行
     @EventHandler
     public void onSignChange(SignChangeEvent e) {
         String l0 = PlainTextComponentSerializer.plainText().serialize(e.line(0));
@@ -293,7 +297,9 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         }
     }
 
-    private void sendConfirmation(Player player, String plotName) {
+     */
+
+    public void sendConfirmation(Player player, String plotName) {
         if (!getConfig().getString("plots." + plotName + ".status", "selling").equalsIgnoreCase("selling")) return;
         double price = getConfig().getDouble("plots." + plotName + ".price", 0);
         player.sendMessage("§6§l土地 '" + plotName + "' を §e" + price + "円 §6で購入しますか？");
@@ -303,6 +309,7 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         player.sendMessage(button);
     }
 
+    /*  Event.javaクラスに移行
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onShovelSelect(PlayerInteractEvent e) {
         if (!e.getPlayer().isOp() || e.getItem() == null || e.getItem().getType() != Material.WOODEN_SHOVEL) return;
@@ -313,6 +320,8 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         if (e.getAction() == Action.LEFT_CLICK_BLOCK) { selections.get(uuid)[0] = e.getClickedBlock().getLocation(); e.getPlayer().sendMessage("§a始点を設定しました。"); }
         else if (e.getAction() == Action.RIGHT_CLICK_BLOCK) { selections.get(uuid)[1] = e.getClickedBlock().getLocation(); e.getPlayer().sendMessage("§b終点を設定しました。"); }
     }
+
+     */
 
     private void showParticles() {
         for (UUID u : selections.keySet()) {
@@ -332,4 +341,15 @@ public class MyPlugin extends JavaPlugin implements Listener, CommandExecutor {
         for (double y = minY; y <= maxY; y += 1.0) { player.spawnParticle(part, minX, y, minZ, 1, 0,0,0,0); player.spawnParticle(part, maxX, y, minZ, 1, 0,0,0,0); player.spawnParticle(part, minX, y, maxZ, 1, 0,0,0,0); player.spawnParticle(part, maxX, y, maxZ, 1, 0,0,0,0); }
         for (double z = minZ; z <= maxZ; z += 1.0) { player.spawnParticle(part, minX, minY, z, 1, 0,0,0,0); player.spawnParticle(part, maxX, minY, z, 1, 0,0,0,0); player.spawnParticle(part, minX, maxY, z, 1, 0,0,0,0); player.spawnParticle(part, maxX, maxY, z, 1, 0,0,0,0); }
     }
+
+    private void plotList(Player player){
+
+        player.sendMessage("§6=========土地一覧=========");
+        for (int i = 0 ; plots.size() > i; i++) {
+            player.sendMessage("§a " + plots.get(i));
+        }
+        player.sendMessage("§6========================");
+
+    }
+
 }
