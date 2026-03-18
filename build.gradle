@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'tan0528.land'
-version = '1.0-SNAPSHOT'
+version = '1.1'
 
 // Javaのバージョン設定（1.20.x以降なら17以上を推奨）
 java {
