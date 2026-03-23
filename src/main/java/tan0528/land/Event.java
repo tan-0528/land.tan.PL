@@ -103,6 +103,10 @@ public class Event  implements Listener {
         // 絵画、防具立て、絵画保護
         if (event.getEntity() instanceof ItemFrame itemFrame || event.getEntity() instanceof ArmorStand ) {
 
+            if (event.getDamager() instanceof Projectile projectile){
+                event.setCancelled(true);
+            }
+            
             if (event.getDamager() instanceof Player player) {
                 if (player.isOp()){
                     return;
